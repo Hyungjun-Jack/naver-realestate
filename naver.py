@@ -82,9 +82,11 @@ if data:
     # df_display = df[["articleNo", "articleName", "realEstateTypeName", "tradeTypeName", "floorInfo",
     #                  "dealOrWarrantPrc", "areaName", "direction", "articleConfirmYmd", "articleFeatureDesc",
     #                  "tagList", "buildingName", "sameAddrMaxPrc", "sameAddrMinPrc", "realtorName"]]
-    df_display = df[["articleName", "tradeTypeName", "buildingName", "floorInfo",
-                     "dealOrWarrantPrc", "areaName",  "direction", "articleConfirmYmd", "articleFeatureDesc",
-                     "tagList",  "sameAddrMaxPrc", "sameAddrMinPrc", "realtorName"]]
+    df_display = df[["articleNo", "buildingName", "tradeTypeName", "floorInfo",
+                     "dealOrWarrantPrc", "sameAddrCnt", "areaName", "direction", "articleFeatureDesc",
+                     "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName"]]
+
+    # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
     # Display the table in Streamlit with a clean, readable layout
     st.write("### Real Estate Listings - Pages 1 to 10")
