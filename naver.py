@@ -7,6 +7,16 @@ st.set_page_config(page_title="Real Estate Listings Viewer", layout="wide")
 st.title("Real Estate Listings from Pages 1 to 10")
 st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
 
+buildingNames = {
+    "엘크루윈드포레": 117911,
+    "힐스테이트숭의역(주상복합)":145969,
+}
+
+value = st.selectbox("아파트선택", list(buildingNames.keys()))
+
+complex = buildingNames[value]
+
+
 # Define the cookies and headers as provided
 cookies = {
     'NNB': '2NWNJKPJZKOWO',
@@ -45,7 +55,7 @@ headers = {
 
 # Function to get data from the API for pages 1 to 10
 @st.cache_data
-def fetch_all_data():
+def fetch_all_data(complex):
     all_articles = []
     for page in range(1, 11):
         try:
@@ -53,7 +63,7 @@ def fetch_all_data():
             # url = f'https://new.land.naver.com/api/articles/complex/111515?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
             # url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
             # url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
-            url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
+            url = f'https://new.land.naver.com/api/articles/complex/{complex}?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
             response = requests.get(url, cookies=cookies, headers=headers)
 
             print(response)
@@ -73,7 +83,7 @@ def fetch_all_data():
     return all_articles
 
 # Fetch data for all pages
-data = fetch_all_data()
+data = fetch_all_data(complex)
 
 # Transform data into a DataFrame if data is available
 if data:
@@ -82,14 +92,22 @@ if data:
     # df_display = df[["articleNo", "articleName", "realEstateTypeName", "tradeTypeName", "floorInfo",
     #                  "dealOrWarrantPrc", "areaName", "direction", "articleConfirmYmd", "articleFeatureDesc",
     #                  "tagList", "buildingName", "sameAddrMaxPrc", "sameAddrMinPrc", "realtorName"]]
-    df_display = df[["articleNo", "buildingName", "tradeTypeName", "floorInfo",
-                     "dealOrWarrantPrc", "sameAddrCnt", "areaName", "direction", "articleFeatureDesc",
-                     "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName"]]
+    df_display = df[["articleNo", "articleName", "buildingName", "tradeTypeName", "floorInfo",
+                     "dealOrWarrantPrc", "sameAddrCnt", "areaName", "direction", 
+                     "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "articleFeatureDesc",]]
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
+    df_temp = df_display.loc[df_display["tradeTypeName"] == "전세"].copy()
+
+    print(df_temp)
+
+    buildings = sorted(df_temp['buildingName'].unique())
+    
+    print(buildings)
+
     # Display the table in Streamlit with a clean, readable layout
     st.write("### Real Estate Listings - Pages 1 to 10")
-    st.dataframe(df_display)
+    st.dataframe(df_temp)
 else:
     st.write("No data available.")
