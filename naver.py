@@ -1,20 +1,42 @@
 import streamlit as st
 import requests
 import pandas as pd
+from datetime import datetime
 
 # Streamlit page setup
 st.set_page_config(page_title="Real Estate Listings Viewer", layout="wide")
-st.title("Real Estate Listings from Pages 1 to 10")
-st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
+# st.title("Real Estate Listings from Pages 1 to 10")
+# st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
 
 buildingNames = {
     "엘크루윈드포레": 117911,
     "힐스테이트숭의역(주상복합)":145969,
 }
 
-value = st.selectbox("아파트선택", list(buildingNames.keys()))
 
+def print_func():
+    now = datetime.now()
+    print(f'{now.minute}m{now.second}s')
+    for i in st.session_state.keys():
+        if i.startswith('dynamic_checkbox_') and st.session_state[i]:
+            st.session_state[i] = False
+
+value = st.selectbox("아파트선택", list(buildingNames.keys()))
 complex = buildingNames[value]
+
+if "complex" not in st.session_state:
+    st.session_state.complex = complex
+
+if st.session_state.complex != complex:
+    st.session_state.complex = complex
+    print_func()
+
+# if complex:
+
+#     for i in st.session_state.keys():
+#         if i.startswith('dynamic_checkbox_') and st.session_state[i]:
+#             print("WHAT")
+#             st.session_state[i] = False
 
 
 # Define the cookies and headers as provided
@@ -85,8 +107,15 @@ def fetch_all_data(complex):
 # Fetch data for all pages
 data = fetch_all_data(complex)
 
+def get_selected_checkboxes():
+    return [i.replace('dynamic_checkbox_','') for i in st.session_state.keys() if i.startswith('dynamic_checkbox_') and st.session_state[i]]
+
+def get_selected_trade_type():
+    return [i.replace('trade_type_checkbox_','') for i in st.session_state.keys() if i.startswith('trade_type_checkbox_') and st.session_state[i]]
+
 # Transform data into a DataFrame if data is available
 if data:
+    
     df = pd.DataFrame(data)
     # Select columns to display
     # df_display = df[["articleNo", "articleName", "realEstateTypeName", "tradeTypeName", "floorInfo",
@@ -98,13 +127,48 @@ if data:
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
-    df_temp = df_display.loc[df_display["tradeTypeName"] == "전세"].copy()
+    # df_temp = df_display.loc[df_display["tradeTypeName"] == "매매"].copy()
+    df_temp = df_display
 
-    print(df_temp)
+    # print(df_temp)
 
     buildings = sorted(df_temp['buildingName'].unique())
     
-    print(buildings)
+    column_width = [1 for i in buildings]
+
+    column_width.append(10)
+
+    print(column_width)
+
+    # cols = st.columns(len(buildings))
+    cols = st.columns(column_width)
+
+    for index, building in  enumerate(buildings):
+        with cols[index]:
+            st.checkbox(building,  key='dynamic_checkbox_' + building)
+
+    col = st.columns([1, 1, 1, 20])
+
+    
+    col[0].checkbox("매매", key="trade_type_checkbox_" + "매매")
+    col[1].checkbox("전세", key="trade_type_checkbox_" + "전세")
+    col[2].checkbox("월세", key="trade_type_checkbox_" + "월세")
+           
+        
+    # print(df_temp['realtorName'].value_counts())
+    # st.write(get_selected_checkboxes())
+    selected_buildings = get_selected_checkboxes()
+    # st.write(selected_buildings)
+    selected_trade_type = get_selected_trade_type()
+
+    print(selected_trade_type)
+
+    if len(selected_buildings) > 0:
+        df_temp = df_temp.loc[df_temp['buildingName'].isin(selected_buildings)]
+
+    if len(selected_trade_type) > 0:
+        df_temp = df_temp.loc[df_temp['tradeTypeName'].isin(selected_trade_type)]
+
 
     # Display the table in Streamlit with a clean, readable layout
     st.write("### Real Estate Listings - Pages 1 to 10")
