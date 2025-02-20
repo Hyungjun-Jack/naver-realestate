@@ -9,8 +9,17 @@ st.set_page_config(page_title="Real Estate Listings Viewer", layout="wide")
 # st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
 
 buildingNames = {
+    "용현자이크레스트":142022,
     "엘크루윈드포레": 117911,
+    "인천SK스카이뷰": 107437,
     "힐스테이트숭의역(주상복합)":145969,
+    "힐스테이트숭의역(오피스텔)":143998,
+    "힐스테이트학익":123141,
+    "시티오씨엘1단지":142108,
+    "시티오씨엘3단지(주상복합)":140483,
+    "시티오씨엘3단지(오피스텔)":140258,
+    "시티오씨엘4단지(주상복합)":144065,
+    "시티오씨엘4단지(오피스텔)":143861,
 }
 
 
@@ -121,6 +130,9 @@ if data:
     # df_display = df[["articleNo", "articleName", "realEstateTypeName", "tradeTypeName", "floorInfo",
     #                  "dealOrWarrantPrc", "areaName", "direction", "articleConfirmYmd", "articleFeatureDesc",
     #                  "tagList", "buildingName", "sameAddrMaxPrc", "sameAddrMinPrc", "realtorName"]]
+
+    df["areaName"] = df["areaName"] + "/" + df["area2"].astype(str) + "㎡"
+
     df_display = df[["articleNo", "articleName", "buildingName", "tradeTypeName", "floorInfo",
                      "dealOrWarrantPrc", "sameAddrCnt", "areaName", "direction", 
                      "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "articleFeatureDesc",]]
@@ -136,7 +148,8 @@ if data:
     
     column_width = [1 for i in buildings]
 
-    column_width.append(10)
+    if len(buildings) < 10:
+        column_width.append(10)
 
     print(column_width)
 
