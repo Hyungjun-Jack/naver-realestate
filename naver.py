@@ -134,7 +134,7 @@ if data:
     df["areaName"] = df["areaName"] + "/" + df["area2"].astype(str) + "㎡"
 
     df_display = df[["articleNo", "articleName", "buildingName", "tradeTypeName", "floorInfo",
-                     "dealOrWarrantPrc", "sameAddrCnt", "areaName", "direction", 
+                     "dealOrWarrantPrc", "sameAddrCnt", "areaName", "area2", "direction", 
                      "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "articleFeatureDesc",]]
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
@@ -143,6 +143,10 @@ if data:
     df_temp = df_display
 
     # print(df_temp)
+
+    # test = df.groupby("area2")["sameAddrMinPrc"]
+
+    # print("here", test.min())
 
     buildings = sorted(df_temp['buildingName'].unique())
     
@@ -182,6 +186,14 @@ if data:
     if len(selected_trade_type) > 0:
         df_temp = df_temp.loc[df_temp['tradeTypeName'].isin(selected_trade_type)]
 
+
+    test = df_temp.groupby(['tradeTypeName', "area2"])
+
+    print("here", test["sameAddrMinPrc"].min(), test["sameAddrMaxPrc"].max())
+
+    # test = df_temp.groupby("area2")["sameAddrMaxPrc"]
+
+    # print("here", test["sameAddrMaxPrc"].max())
 
     # Display the table in Streamlit with a clean, readable layout
     st.write("### Real Estate Listings - Pages 1 to 10")
