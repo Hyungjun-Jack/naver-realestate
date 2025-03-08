@@ -2,13 +2,16 @@ import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime
+import math
 
 # Streamlit page setup
-st.set_page_config(page_title="Real Estate Listings Viewer", layout="wide")
+st.set_page_config(page_title="네이버부동산 매물", layout="wide")
 # st.title("Real Estate Listings from Pages 1 to 10")
 # st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
 
 buildingNames = {
+    "더샵부평센트럴시티":147824,
+    "래미안용산더센트럴(주상복합)":109123,
     "용현자이크레스트":142022,
     "엘크루윈드포레": 117911,
     "인천SK스카이뷰": 107437,
@@ -20,8 +23,42 @@ buildingNames = {
     "시티오씨엘3단지(오피스텔)":140258,
     "시티오씨엘4단지(주상복합)":144065,
     "시티오씨엘4단지(오피스텔)":143861,
+    "래미안라그란데": 163360,
+    "이문아이파크자이(3-1BL)": 174562,
+    "휘경자이디센시아": 157123,
+    "휘경SK뷰": 112482,
+    "장위자이레디언트": 160539,
 }
 
+
+# Function to get data from the API for pages 1 to 10
+@st.cache_data
+def fetch_all_data(complex):
+    all_articles = []
+    for page in range(1, 11):
+        try:
+            # Make the request for the specific page
+            # url = f'https://new.land.naver.com/api/articles/complex/111515?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
+            # url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
+            # url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
+            url = f'https://new.land.naver.com/api/articles/complex/{complex}?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
+            response = requests.get(url, cookies=cookies, headers=headers)
+
+            print(response)
+
+            # Verify response is valid JSON
+            if response.status_code == 200:
+                data = response.json()
+                articles = data.get("articleList", [])
+                all_articles.extend(articles)
+            else:
+                st.warning(f"Failed to retrieve data for page {page}. Status code: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"An error occurred: {e}")
+        except ValueError:
+            st.error(f"Non-JSON response for page {page}.")
+
+    return all_articles
 
 def print_func():
     now = datetime.now()
@@ -30,7 +67,8 @@ def print_func():
         if i.startswith('dynamic_checkbox_') and st.session_state[i]:
             st.session_state[i] = False
 
-value = st.selectbox("아파트선택", list(buildingNames.keys()))
+st.write("### 아파트 선택")
+value = st.selectbox("", list(buildingNames.keys()))
 complex = buildingNames[value]
 
 if "complex" not in st.session_state:
@@ -39,6 +77,12 @@ if "complex" not in st.session_state:
 if st.session_state.complex != complex:
     st.session_state.complex = complex
     print_func()
+    fetch_all_data.clear()
+
+if 'checkbox_매매' not in st.session_state:
+    st.session_state['checkbox_매매'] = "0"
+    st.session_state['checkbox_전세'] = "0"
+    st.session_state['checkbox_월세'] = "0"
 
 # if complex:
 
@@ -84,34 +128,7 @@ headers = {
     # 'cookie': 'NNB=2NWNJKPJZKOWO; _fwb=83jmvbZeoW1P82PFaiDHtf.1738549557392; landHomeFlashUseYn=Y; _fwb=83jmvbZeoW1P82PFaiDHtf.1738549557392; nid_inf=23232436; NID_AUT=KkBR8BO9TRLU5qDUH7RZHhyJwZ8QtwkXYxdyO1qdROV/XS1Tnla6tv55vFJ/LfWK; NID_JKL=0/Wr/dyApEdpKByiscnVUFhT2D3otzPbb3tj2K/nuyo=; NSCS=2; ASID=0e2332a000000194df1babc90000004f; NAC=B04bBgAHTTlfB; REALESTATE=Thu%20Feb%2013%202025%2010%3A40%3A23%20GMT%2B0900%20(Korean%20Standard%20Time); NACT=1; page_uid=iI2Zsdqo1fsss4zJSLdssssst/K-061112; SRT30=1739430247; NID_SES=AAAB42GYKteZS2YspLhgQau+xQgefMGpTBWqB/okFqSjK3Y20q0yUyx2jM/i+mCyaTf9IPX0zN3JSNkWuy3mSFw9D1TnrI90P3kwAbUqgZ5VQx05l2+8hVfqLnBksY4GfMQLhnw7UZK9eRSdjo+38RzaGIDFmehOjbfFw7SCP7tryrffBOdkLYHpdXfymsm0m6eyDi9TdgQlUH9p1KGw9r9FZwQtuCsK1kGydNvL7XiHQLpNe6jglWVKtORsbbJM4mwQehotrQ0K5ExrOMCgBQoFbyZZbuAk5e+dAtf3HWB84gIS/YaJxFc+0TqphJbodiWdPaT0COSk4M78mfhrgATDdIktoa2K/awYkcaiP3bBoGRpTgvxqbX2x/UAMf81BTZJgaYb67b+YQJpQQLBIzqx8+j6FoiJdrW/IF4ilVsLrA+0LRgnauz5vOo2hZ07o1HTYbqZV5CY70zPI9ukcdikpGelHMCrRAKQPbnTgzXKAys52tI4qk/cCq3Rn6BGSirN4NO72SAUy2HJQEvMgXnESa3D3d8J5HjciX02ut4iG4Kk62byoqZJjJ6QMnJ5fgILttMW60VoGTuP40QlDyLUo9NqwzJv6IaTfdF5Bw8QY2As7/QR2954pXxSbQx2wVlPG33qvVgwioAi0xDaqA0Bw8k=; SRT5=1739434133; BUC=pj4SHX-9hg4jXZBY181BeNE5e8fzoerDI6foH4RAngU=',
 }
 
-# Function to get data from the API for pages 1 to 10
-@st.cache_data
-def fetch_all_data(complex):
-    all_articles = []
-    for page in range(1, 11):
-        try:
-            # Make the request for the specific page
-            # url = f'https://new.land.naver.com/api/articles/complex/111515?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
-            # url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
-            # url = f'https://new.land.naver.com/api/articles/complex/117911?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
-            url = f'https://new.land.naver.com/api/articles/complex/{complex}?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
-            response = requests.get(url, cookies=cookies, headers=headers)
 
-            print(response)
-
-            # Verify response is valid JSON
-            if response.status_code == 200:
-                data = response.json()
-                articles = data.get("articleList", [])
-                all_articles.extend(articles)
-            else:
-                st.warning(f"Failed to retrieve data for page {page}. Status code: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            st.error(f"An error occurred: {e}")
-        except ValueError:
-            st.error(f"Non-JSON response for page {page}.")
-
-    return all_articles
 
 # Fetch data for all pages
 data = fetch_all_data(complex)
@@ -122,6 +139,31 @@ def get_selected_checkboxes():
 def get_selected_trade_type():
     return [i.replace('trade_type_checkbox_','') for i in st.session_state.keys() if i.startswith('trade_type_checkbox_') and st.session_state[i]]
 
+def get_selected_area_type():
+    return [int(i.replace('area_checkbox_','')) for i in st.session_state.keys() if i.startswith('area_checkbox_') and st.session_state[i]]
+
+def update_label(labels):
+    # st.write(labels)
+    
+    if "매매" in labels.index:
+        st.session_state['checkbox_매매'] = labels["매매"]
+    else:
+        st.session_state['checkbox_매매'] = "0"
+    if "월세" in labels.index:
+        st.session_state['checkbox_월세'] = labels["월세"]
+    else:
+        st.session_state['checkbox_월세'] = "0"
+    if "전세" in labels.index:
+        st.session_state['checkbox_전세'] = labels["전세"]
+    else:
+        st.session_state['checkbox_전세'] = "0"
+    
+    cols = st.columns([3, 3, 3, 20])
+
+    cols[0].checkbox(f"매매({st.session_state['checkbox_매매']})", key="trade_type_checkbox_" + "매매")
+    cols[1].checkbox(f"전세({st.session_state['checkbox_전세']})", key="trade_type_checkbox_" + "전세")
+    cols[2].checkbox(f"월세({st.session_state['checkbox_월세']})", key="trade_type_checkbox_" + "월세")
+    
 # Transform data into a DataFrame if data is available
 if data:
     
@@ -133,20 +175,15 @@ if data:
 
     df["areaName"] = df["areaName"] + "/" + df["area2"].astype(str) + "㎡"
 
-    df_display = df[["articleNo", "articleName", "buildingName", "tradeTypeName", "floorInfo",
-                     "dealOrWarrantPrc", "sameAddrCnt", "areaName", "area2", "direction", 
+    df_display = df[["articleNo", "buildingName", "tradeTypeName", "floorInfo",
+                     "priceChangeState", "dealOrWarrantPrc", "sameAddrCnt", 
+                     "areaName", "area2", "direction", 
                      "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "articleFeatureDesc",]]
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
     # df_temp = df_display.loc[df_display["tradeTypeName"] == "매매"].copy()
     df_temp = df_display
-
-    # print(df_temp)
-
-    # test = df.groupby("area2")["sameAddrMinPrc"]
-
-    # print("here", test.min())
 
     buildings = sorted(df_temp['buildingName'].unique())
     
@@ -155,30 +192,29 @@ if data:
     if len(buildings) < 10:
         column_width.append(10)
 
-    print(column_width)
-
-    # cols = st.columns(len(buildings))
     cols = st.columns(column_width)
 
     for index, building in  enumerate(buildings):
         with cols[index]:
             st.checkbox(building,  key='dynamic_checkbox_' + building)
 
-    col = st.columns([1, 1, 1, 20])
-
+    areas = sorted(df_temp['area2'].unique())
     
-    col[0].checkbox("매매", key="trade_type_checkbox_" + "매매")
-    col[1].checkbox("전세", key="trade_type_checkbox_" + "전세")
-    col[2].checkbox("월세", key="trade_type_checkbox_" + "월세")
+
+    cols = st.columns([3, 3, 3, 3, 3, 3, 3, 20])
+
+    for index, area in enumerate(areas):
+        with cols[index]: 
+            st.checkbox(f'{area}',  key=f'area_checkbox_{area}')
            
         
     # print(df_temp['realtorName'].value_counts())
-    # st.write(get_selected_checkboxes())
+    
     selected_buildings = get_selected_checkboxes()
-    # st.write(selected_buildings)
+   
     selected_trade_type = get_selected_trade_type()
 
-    print(selected_trade_type)
+    selected_area = get_selected_area_type()
 
     if len(selected_buildings) > 0:
         df_temp = df_temp.loc[df_temp['buildingName'].isin(selected_buildings)]
@@ -186,17 +222,31 @@ if data:
     if len(selected_trade_type) > 0:
         df_temp = df_temp.loc[df_temp['tradeTypeName'].isin(selected_trade_type)]
 
+    if len(selected_area) > 0:
+        df_temp = df_temp.loc[df_temp['area2'].isin(selected_area)]
 
-    test = df_temp.groupby(['tradeTypeName', "area2"])
+    update_label(df_temp["tradeTypeName"].value_counts())
 
-    print("here", test["sameAddrMinPrc"].min(), test["sameAddrMaxPrc"].max())
-
-    # test = df_temp.groupby("area2")["sameAddrMaxPrc"]
-
-    # print("here", test["sameAddrMaxPrc"].max())
 
     # Display the table in Streamlit with a clean, readable layout
-    st.write("### Real Estate Listings - Pages 1 to 10")
+    st.write("### 네이버 부동산 매물")
+
+    column_names = ["번호", "동", "거래", "층", "가격변동", 
+                    "가격", "동일매물", "타입", "전용면적", 
+                    "향", "동일가격 최소", "동일가격 최대", "중개사무소",
+                    "매물설명"]
+
+    df_temp.columns = column_names
+
+
+    test = df_temp.groupby(['거래', "전용면적"])
+
+
+    min = test["동일가격 최소"].min()
+    max = test["동일가격 최대"].max()
+
+    st.dataframe(pd.concat([min, max], axis=1), width=500)
+
     st.dataframe(df_temp)
 else:
     st.write("No data available.")
