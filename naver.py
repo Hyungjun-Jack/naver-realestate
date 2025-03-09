@@ -35,7 +35,10 @@ buildingNames = {
 @st.cache_data
 def fetch_all_data(complex):
     all_articles = []
-    for page in range(1, 11):
+
+    page = 1
+
+    while True:
         try:
             # Make the request for the specific page
             # url = f'https://new.land.naver.com/api/articles/complex/111515?realEstateType=APT%3AABYG%3AJGC%3APRE&tradeType=A1&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount=300&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=111515&buildingNos=&areaNos=&type=list&order=prc'
@@ -44,15 +47,20 @@ def fetch_all_data(complex):
             url = f'https://new.land.naver.com/api/articles/complex/{complex}?realEstateType=APT%3APRE&tradeType=&tag=%3A%3A%3A%3A%3A%3A%3A%3A&rentPriceMin=0&rentPriceMax=900000000&priceMin=0&priceMax=900000000&areaMin=0&areaMax=900000000&oldBuildYears&recentlyBuildYears&minHouseHoldCount&maxHouseHoldCount&showArticle=false&sameAddressGroup=true&minMaintenanceCost&maxMaintenanceCost&priceType=RETAIL&directions=&page={page}&complexNo=117911&buildingNos=&areaNos=&type=list&order=rank'
             response = requests.get(url, cookies=cookies, headers=headers)
 
-            print(response)
-
             # Verify response is valid JSON
             if response.status_code == 200:
                 data = response.json()
                 articles = data.get("articleList", [])
-                all_articles.extend(articles)
+
+
+                if len(articles) > 0:
+                    all_articles.extend(articles)
+                else:
+                    break
             else:
                 st.warning(f"Failed to retrieve data for page {page}. Status code: {response.status_code}")
+                break
+            page = page + 1
         except requests.exceptions.RequestException as e:
             st.error(f"An error occurred: {e}")
         except ValueError:
@@ -136,11 +144,12 @@ data = fetch_all_data(complex)
 def get_selected_checkboxes():
     return [i.replace('dynamic_checkbox_','') for i in st.session_state.keys() if i.startswith('dynamic_checkbox_') and st.session_state[i]]
 
+def get_selected_area_type():
+    return [int(i.replace('area_checkbox_','')) for i in st.session_state.keys() if i.startswith('area_checkbox_') and st.session_state[i]]
+    
 def get_selected_trade_type():
     return [i.replace('trade_type_checkbox_','') for i in st.session_state.keys() if i.startswith('trade_type_checkbox_') and st.session_state[i]]
 
-def get_selected_area_type():
-    return [int(i.replace('area_checkbox_','')) for i in st.session_state.keys() if i.startswith('area_checkbox_') and st.session_state[i]]
 
 def update_label(labels):
     # st.write(labels)
@@ -211,21 +220,30 @@ if data:
     # print(df_temp['realtorName'].value_counts())
     
     selected_buildings = get_selected_checkboxes()
-   
-    selected_trade_type = get_selected_trade_type()
-
     selected_area = get_selected_area_type()
+    selected_trade_type = get_selected_trade_type()
 
     if len(selected_buildings) > 0:
         df_temp = df_temp.loc[df_temp['buildingName'].isin(selected_buildings)]
 
-    if len(selected_trade_type) > 0:
-        df_temp = df_temp.loc[df_temp['tradeTypeName'].isin(selected_trade_type)]
-
     if len(selected_area) > 0:
         df_temp = df_temp.loc[df_temp['area2'].isin(selected_area)]
 
-    update_label(df_temp["tradeTypeName"].value_counts())
+    if len(selected_trade_type) > 0:
+        df_temp = df_temp.loc[df_temp['tradeTypeName'].isin(selected_trade_type)]
+
+
+    cols = st.columns([3, 3, 3, 20])
+
+    trade_types = df_temp["tradeTypeName"].value_counts()
+
+    trade_labels = ["매매", "전세", "월세"]
+
+    for i, label in enumerate(trade_labels):
+        count = trade_types.get(label, 0)  # 키가 없을 경우 기본값 0
+        selected = next((True for i, v in enumerate(selected_trade_type) if v == label), False)
+        
+        cols[i].checkbox(f"{label}({count})", value=selected, key=f"trade_type_checkbox_{label}")
 
 
     # Display the table in Streamlit with a clean, readable layout
