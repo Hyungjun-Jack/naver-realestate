@@ -32,7 +32,7 @@ buildingNames = {
 
 
 # Function to get data from the API for pages 1 to 10
-@st.cache_data
+@st.cache_data(show_spinner="데이터 조회 중...")
 def fetch_all_data(complex):
     all_articles = []
 
@@ -149,7 +149,6 @@ def get_selected_area_type():
     
 def get_selected_trade_type():
     return [i.replace('trade_type_checkbox_','') for i in st.session_state.keys() if i.startswith('trade_type_checkbox_') and st.session_state[i]]
-
 
 def update_label(labels):
     # st.write(labels)
