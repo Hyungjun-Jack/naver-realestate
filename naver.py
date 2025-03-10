@@ -76,7 +76,7 @@ def print_func():
             st.session_state[i] = False
 
 st.write("### 아파트 선택")
-value = st.selectbox(list(buildingNames.keys()))
+value = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="hidden")
 complex = buildingNames[value]
 
 if "complex" not in st.session_state:
