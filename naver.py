@@ -211,7 +211,12 @@ if data:
     areas = sorted(df_temp['area2'].unique())
     
 
-    cols = st.columns([3, 3, 3, 3, 3, 3, 3, 20])
+    column_width = [3 for i in areas]
+
+    if len(areas) < 10:
+        column_width.append(20)
+
+    cols = st.columns(column_width)
 
     for index, area in enumerate(areas):
         with cols[index]: 
