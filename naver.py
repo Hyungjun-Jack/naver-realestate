@@ -189,7 +189,7 @@ if data:
     df_display = df[["articleNo", "buildingName", "tradeTypeName", "floorInfo",
                      "priceChangeState", "dealOrWarrantPrc", "sameAddrCnt", 
                      "areaName", "area2", "direction", 
-                     "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "articleFeatureDesc",]]
+                     "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "realtorId", "articleFeatureDesc",]]
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
@@ -256,7 +256,7 @@ if data:
 
     column_names = ["번호", "동", "거래", "층", "가격변동", 
                     "가격", "동일매물", "타입", "전용면적", 
-                    "향", "동일가격 최소", "동일가격 최대", "중개사무소",
+                    "향", "동일가격 최소", "동일가격 최대", "중개사무소", "중개사무소ID",
                     "매물설명"]
 
     df_temp.columns = column_names
@@ -274,9 +274,13 @@ if data:
     st.dataframe(statistic, width=500)
 
     df_temp['번호'] = df_temp["번호"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+    df_temp['중개사무소ID'] = df_temp["중개사무소ID"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
+
+    # https://new.land.naver.com/complexes/145969?realtorId=mis770414
 
     st.dataframe(df_temp, column_config={
-        "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기")
+        "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
+        "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
     },)
 else:
     st.write("No data available.")
