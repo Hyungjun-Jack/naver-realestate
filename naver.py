@@ -223,7 +223,6 @@ if data:
         with cols[index]: 
             st.checkbox(f'{area}',  key=f'area_checkbox_{area}')
            
-        
     # print(df_temp['realtorName'].value_counts())
     
     selected_buildings = get_selected_checkboxes()
@@ -252,7 +251,6 @@ if data:
         
         cols[i].checkbox(f"{label}({count})", value=selected, key=f"trade_type_checkbox_{label}")
 
-
     # Display the table in Streamlit with a clean, readable layout
     st.write("### 네이버 부동산 매물")
 
@@ -263,14 +261,17 @@ if data:
 
     df_temp.columns = column_names
 
-
     test = df_temp.groupby(['거래', "전용면적"])
-
 
     min = test["동일가격 최소"].min()
     max = test["동일가격 최대"].max()
+    count = test["전용면적"].value_counts()
+    
+    statistic = pd.concat([count, min, max], axis=1)
 
-    st.dataframe(pd.concat([min, max], axis=1), width=500)
+    statistic = statistic.rename(columns={'count': '매물수'})
+
+    st.dataframe(statistic, width=500)
 
     st.dataframe(df_temp)
 else:
