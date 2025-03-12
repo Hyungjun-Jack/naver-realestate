@@ -273,6 +273,10 @@ if data:
 
     st.dataframe(statistic, width=500)
 
-    st.dataframe(df_temp)
+    df_temp['번호'] = df_temp["번호"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+
+    st.dataframe(df_temp, column_config={
+        "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기")
+    },)
 else:
     st.write("No data available.")
