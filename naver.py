@@ -267,7 +267,7 @@ if data:
     max = test["동일가격 최대"].max()
     count = test["전용면적"].value_counts()
     
-    statistic = pd.concat([count, min, max], axis=1)
+    statistic = pd.concat([min, max, count], axis=1)
 
     statistic = statistic.rename(columns={'count': '매물수'})
 
