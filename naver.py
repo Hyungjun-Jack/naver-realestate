@@ -186,10 +186,21 @@ if data:
 
     df["areaName"] = df["areaName"] + "/" + df["area2"].astype(str) + "㎡"
 
-    df_display = df[["articleNo", "buildingName", "tradeTypeName", "floorInfo",
-                     "priceChangeState", "dealOrWarrantPrc", "sameAddrCnt", 
-                     "areaName", "area2", "direction", 
-                     "sameAddrMinPrc", "sameAddrMaxPrc",  "realtorName", "realtorId", "articleFeatureDesc",]]
+    df_display = df[["articleNo", 
+                     "articleConfirmYmd", 
+                     "tradeTypeName", 
+                     "buildingName", 
+                     "floorInfo",
+                     "areaName", 
+                     "direction", 
+                     "sameAddrCnt", 
+                     "sameAddrMinPrc", 
+                     "sameAddrMaxPrc",  
+                     "priceChangeState", 
+                     "realtorName", 
+                     "realtorId", 
+                     "articleFeatureDesc",
+                     "area2", ]]
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
@@ -254,10 +265,22 @@ if data:
     # Display the table in Streamlit with a clean, readable layout
     st.write("### 네이버 부동산 매물")
 
-    column_names = ["번호", "동", "거래", "층", "가격변동", 
-                    "가격", "동일매물", "타입", "전용면적", 
-                    "향", "동일가격 최소", "동일가격 최대", "중개사무소", "중개사무소ID",
-                    "매물설명"]
+    column_names = ["번호", 
+                    "등록일", 
+                    "거래", 
+                    "동",  
+                    "층", 
+                    "타입", 
+                    "향", 
+                    "동일매물", 
+                    "동일가격 최소", 
+                    "동일가격 최대", 
+                    "가격변동", 
+                    "중개사무소", 
+                    "중개사무소ID",
+                    "매물설명",
+                    "전용면적", 
+                    ]
 
     df_temp.columns = column_names
 
@@ -278,7 +301,11 @@ if data:
 
     # https://new.land.naver.com/complexes/145969?realtorId=mis770414
 
-    st.dataframe(df_temp, column_config={
+    df_temp["등록일"] = pd.to_datetime(df_temp["등록일"], format="%Y%m%d")
+
+    df_temp["등록일"] = df_temp["등록일"].dt.date
+
+    st.dataframe(df_temp.drop(columns=['전용면적']), column_config={
         "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
         "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
     },)
