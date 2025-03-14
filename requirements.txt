@@ -1,3 +1,5 @@
 sqlalchemy
 pymysql 
 psycopg2
+pandas
+pg_config
