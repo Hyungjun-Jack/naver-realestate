@@ -1,8 +1,9 @@
 import streamlit as st
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
+from sqlalchemy import create_engine
 
 # Streamlit page setup
 st.set_page_config(page_title="네이버부동산 매물", layout="wide")
@@ -16,7 +17,7 @@ buildingNames = {
     "래미안용산더센트럴(주상복합)":109123,
     "센트럴파크(주상복합)":117804,
     "용현자이크레스트":142022,
-    "엘크루윈드포레": 117911,
+    "용현엘크루윈드포레": 117911,
     "인천SK스카이뷰": 107437,
     "힐스테이트숭의역(주상복합)":145969,
     "힐스테이트숭의역(오피스텔)":143998,
@@ -79,8 +80,8 @@ def print_func():
             st.session_state[i] = False
 
 st.write("### 아파트 선택")
-value = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="hidden")
-complex = buildingNames[value]
+articleName = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="hidden")
+complex = buildingNames[articleName]
 
 if "complex" not in st.session_state:
     st.session_state.complex = complex
@@ -94,6 +95,17 @@ if 'checkbox_매매' not in st.session_state:
     st.session_state['checkbox_매매'] = "0"
     st.session_state['checkbox_전세'] = "0"
     st.session_state['checkbox_월세'] = "0"
+
+# MySQL 데이터베이스 연결 설정
+user = "root"
+password = "yes_yes0716"
+host = "localhost"
+port = 3306
+database = "test_db"
+
+if "engine" not in st.session_state:
+    engine = create_engine(f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}")
+    st.session_state.engine = engine
 
 # if complex:
 
@@ -174,7 +186,74 @@ def update_label(labels):
     cols[0].checkbox(f"매매({st.session_state['checkbox_매매']})", key="trade_type_checkbox_" + "매매")
     cols[1].checkbox(f"전세({st.session_state['checkbox_전세']})", key="trade_type_checkbox_" + "전세")
     cols[2].checkbox(f"월세({st.session_state['checkbox_월세']})", key="trade_type_checkbox_" + "월세")
+
+def save_to_db(dataframe):
+    # print(dataframe[["생성일", "단지"]])
+    # print(st.session_state.engine)
+    dataframe.to_sql("article_list", con=st.session_state.engine, if_exists="append", index=False)
+
+def read_from_db(articleName, selected_buildings, selected_area, selected_trade_type):
+    column_names = ["번호", 
+                    "단지",
+                    "등록일", 
+                    "거래", 
+                    "동",  
+                    "층", 
+                    "타입", 
+                    "향", 
+                    "동일매물", 
+                    "동일가격 최소", 
+                    "동일가격 최대", 
+                    "가격변동", 
+                    "중개사무소", 
+                    "중개사무소ID",
+                    "매물설명",
+                    "전용면적", 
+                    "DB저장일시"
+                    ]
     
+    # 현재 날짜 가져오기
+    today = datetime.today()
+
+    # 어제 날짜 계산
+    yesterday = today - timedelta(days=1)
+
+    # 어제 00:00:00 (YYYY-MM-DD HH:MM:SS)
+    start_time = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
+    start_time_str = start_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 어제 23:59:59 (YYYY-MM-DD HH:MM:SS)
+    end_time = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
+    end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = f"SELECT * FROM article_list where articleName='{articleName}' and create_date <= '{end_time_str}'"
+    # query = f"SELECT * FROM article_list where articleName='{articleName}'"
+
+    st.markdown(query)
+
+    df_from_db = pd.read_sql(query, con=st.session_state.engine)
+
+    if len(selected_buildings) > 0:
+        df_from_db = df_from_db.loc[df_from_db['buildingName'].isin(selected_buildings)]
+
+    if len(selected_area) > 0:
+        df_from_db = df_from_db.loc[df_from_db['area2'].isin(selected_area)]
+
+    if len(selected_trade_type) > 0:
+        df_from_db = df_from_db.loc[df_from_db['tradeTypeName'].isin(selected_trade_type)]
+
+    df_from_db['articleNo'] = df_from_db["articleNo"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+    df_from_db['realtorId'] = df_from_db["realtorId"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
+
+    df_from_db.columns = column_names
+
+    df_from_db.insert(0, 'DB저장일시', df_from_db.pop('DB저장일시'))
+
+    st.dataframe(df_from_db.drop(columns=['전용면적', '단지']), column_config={
+        "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
+        "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
+    })
+
 # Transform data into a DataFrame if data is available
 if data:
     
@@ -187,6 +266,7 @@ if data:
     df["areaName"] = df["areaName"] + "/" + df["area2"].astype(str) + "㎡"
 
     df_display = df[["articleNo", 
+                     "articleName", 
                      "articleConfirmYmd", 
                      "tradeTypeName", 
                      "buildingName", 
@@ -200,7 +280,7 @@ if data:
                      "realtorName", 
                      "realtorId", 
                      "articleFeatureDesc",
-                     "area2", ]]
+                     "area2", ]].copy()
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
@@ -221,7 +301,6 @@ if data:
             st.checkbox(building,  key='dynamic_checkbox_' + building)
 
     areas = sorted(df_temp['area2'].unique())
-    
 
     column_width = [3 for i in areas]
 
@@ -265,7 +344,10 @@ if data:
     # Display the table in Streamlit with a clean, readable layout
     st.write("### 네이버 부동산 매물")
 
+    df_origin = df_temp.copy()
+
     column_names = ["번호", 
+                    "단지",
                     "등록일", 
                     "거래", 
                     "동",  
@@ -282,32 +364,46 @@ if data:
                     "전용면적", 
                     ]
 
-    df_temp.columns = column_names
 
-    test = df_temp.groupby(['거래', "전용면적"])
+    test = df_temp.groupby(['tradeTypeName', "area2"])
 
-    min = test["동일가격 최소"].min()
-    max = test["동일가격 최대"].max()
-    count = test["전용면적"].value_counts()
+    min = test["sameAddrMinPrc"].min()
+    max = test["sameAddrMaxPrc"].max()
+    count = test["area2"].value_counts()
     
     statistic = pd.concat([min, max, count], axis=1)
 
-    statistic = statistic.rename(columns={'count': '매물수'})
+    statistic = statistic.rename(columns={'sameAddrMinPrc':'동일가격 최소', 'sameAddrMaxPrc':'동일가격 최대', 'count': '매물수',})
+    statistic = statistic.rename_axis(["거래", "전용면적"], axis=0)
 
     st.dataframe(statistic, width=500)
 
-    df_temp['번호'] = df_temp["번호"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
-    df_temp['중개사무소ID'] = df_temp["중개사무소ID"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
+    df_temp['articleNo'] = df_temp["articleNo"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+    df_temp['realtorId'] = df_temp["realtorId"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
 
     # https://new.land.naver.com/complexes/145969?realtorId=mis770414
 
-    df_temp["등록일"] = pd.to_datetime(df_temp["등록일"], format="%Y%m%d")
+    df_temp["articleConfirmYmd"] = pd.to_datetime(df_temp["articleConfirmYmd"], format="%Y%m%d")
 
-    df_temp["등록일"] = df_temp["등록일"].dt.date
+    df_temp["articleConfirmYmd"] = df_temp["articleConfirmYmd"].dt.date
 
-    st.dataframe(df_temp.drop(columns=['전용면적']), column_config={
+    df_temp.columns = column_names
+
+    st.dataframe(df_temp.drop(columns=['전용면적', '단지']), column_config={
         "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
         "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
     },)
+
+    df_origin["create_date"] = datetime.now()
+    
+    # cols = st.columns([3, 3, 20])
+
+    # with cols[0]:
+    if st.button("DB에 저장"):
+        save_to_db(df_origin)
+
+    # with cols[1]:
+    if st.button("지난 데이터 조회"):
+        read_from_db(articleName, selected_buildings, selected_area, selected_trade_type)
 else:
     st.write("No data available.")
