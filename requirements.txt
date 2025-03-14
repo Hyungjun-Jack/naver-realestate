@@ -1,5 +1,4 @@
 sqlalchemy
 pymysql 
-psycopg2
-pandas
-pg_config
+psycopg2-binary
+
