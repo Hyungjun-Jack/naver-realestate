@@ -2,13 +2,52 @@ import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-import math
 from sqlalchemy import create_engine
+from google.cloud import firestore
+from google.oauth2 import service_account
+
+def testing_firestore():
+
+    # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+
+    # Firestore에서 데이터 가져오기 예제
+    docs = db.collection("users").stream()
+    for doc in docs:
+        st.write(f"{doc.id} => {doc.to_dict()}")
+
+
+# db = firestore.Client.from_service_account_json("nwitter-reloaded-f8e63-9b90f93f06e2.json")
+
+# print(db)
+
+# data = {
+#     "name": ["Alice", "Bob", "Charlie"],
+#     "age": [25, 30, 35],
+#     "city": ["Seoul", "Busan", "Incheon"]
+# }
+# df = pd.DataFrame(data)
+
+# # 3. Firestore 컬렉션 설정
+# collection_name = "users"  # 원하는 컬렉션 이름 설정
+
+# # 4. DataFrame을 Firestore에 업로드
+# for index, row in df.iterrows():
+#     doc_ref = db.collection(collection_name).document(str(index))  # 문서 ID를 index로 설정
+#     doc_ref.set(row.to_dict())  # 딕셔너리 형태로 변환 후 저장
+
+# print("Firestore에 데이터 업로드 완료!")
 
 # Streamlit page setup
 st.set_page_config(page_title="네이버부동산 매물", layout="wide")
 # st.title("Real Estate Listings from Pages 1 to 10")
 # st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
+
+testing_firestore()
 
 buildingNames = {
     "더샵부평센트럴시티":147824,
