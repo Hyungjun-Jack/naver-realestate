@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from google.cloud import firestore
 from google.oauth2 import service_account
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 def testing_firestore():
 
@@ -16,9 +17,9 @@ def testing_firestore():
     db = firestore.Client(credentials=credentials)
 
     # Firestore에서 데이터 가져오기 예제
-    docs = db.collection("users").stream()
-    for doc in docs:
-        st.write(f"{doc.id} => {doc.to_dict()}")
+    docs = db.collection("realestates").stream()
+    # for doc in docs:
+    #     st.write(f"{doc.id} => {doc.to_dict()}")
 
 
 # db = firestore.Client.from_service_account_json("nwitter-reloaded-f8e63-9b90f93f06e2.json")
@@ -226,12 +227,173 @@ def update_label(labels):
     cols[1].checkbox(f"전세({st.session_state['checkbox_전세']})", key="trade_type_checkbox_" + "전세")
     cols[2].checkbox(f"월세({st.session_state['checkbox_월세']})", key="trade_type_checkbox_" + "월세")
 
+
+def save_to_firestore(dataframe):
+     # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+
+    for index, row in dataframe.iterrows():
+        # print(row.to_dict())
+        doc_ref = db.collection("realestates").document()  # 문서 ID를 index로 설정
+        doc_ref.set(row.to_dict())  # 딕셔너리 형태로 변환 후 저장
+
+    # today = datetime.today()
+    # print(today.strftime("%Y-%m-%d %H:%M:%S"))
+
 def save_to_db(dataframe):
     # print(dataframe[["생성일", "단지"]])
     # print(st.session_state.engine)
     dataframe.to_sql("article_list", con=st.session_state.engine, if_exists="append", index=False)
 
-def read_from_db(articleName, selected_buildings, selected_area, selected_trade_type):
+def make_dataframe(firestore):
+    # print(firestore)
+
+    # for doc in firestore:
+    #     print("wefe", doc)
+
+    data = [doc.to_dict() for doc in firestore]
+
+    print("ASDFASD", data)
+
+    df = pd.DataFrame(data)
+    
+    return df
+
+def check_today_data(articleName):
+    # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+
+    # Firestore에서 데이터 가져오기 예제
+    realestates_ref = db.collection("realestates")
+    
+    # 현재 날짜 가져오기
+    today = datetime.today()
+
+    start_time = datetime(today.year, today.month, today.day, 0, 0, 0)
+    start_time_str = start_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    end_time = datetime(today.year, today.month, today.day, 23, 59, 59)
+    end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str)).stream()
+
+    return len(list(query))
+
+def read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today = False):
+
+    column_names = ["DB저장일시",
+                    "번호", 
+                    "단지",
+                    "등록일", 
+                    "거래", 
+                    "동",  
+                    "층", 
+                    "타입", 
+                    "전용면적",
+                    "향", 
+                    "동일매물", 
+                    "동일가격 최소", 
+                    "동일가격 최대", 
+                    "가격변동", 
+                    "중개사무소", 
+                    "중개사무소ID",
+                    "매물설명",
+                    ]
+        
+    # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+
+    # Firestore에서 데이터 가져오기 예제
+    realestates_ref = db.collection("realestates")
+    
+    # 현재 날짜 가져오기
+    today = datetime.today()
+
+    # 어제 날짜 계산
+    if today == False:
+        yesterday = today - timedelta(days=1)
+    else:
+        yesterday = today
+
+    # 어제 00:00:00 (YYYY-MM-DD HH:MM:SS)
+    start_time = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
+    start_time_str = start_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 어제 23:59:59 (YYYY-MM-DD HH:MM:SS)
+    end_time = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
+    end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str)).stream()
+
+    df = make_dataframe(query)
+
+    if df.empty:
+        print("AAAAA")
+        query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).stream()
+        
+        df = make_dataframe(query)
+        
+    print(df)
+    
+    if df.empty:
+        return
+
+    if len(selected_buildings) > 0:
+        df = df.loc[df['buildingName'].isin(selected_buildings)]
+
+    if len(selected_area) > 0:
+        df = df.loc[df['area2'].isin(selected_area)]
+
+    if len(selected_trade_type) > 0:
+        df = df.loc[df['tradeTypeName'].isin(selected_trade_type)]
+
+
+    df_display = df[["create_date",
+                     "articleNo", 
+                    "articleName", 
+                    "articleConfirmYmd", 
+                    "tradeTypeName", 
+                    "buildingName", 
+                    "floorInfo",
+                    "areaName", 
+                    "area2",
+                    "direction", 
+                    "sameAddrCnt", 
+                    "sameAddrMinPrc", 
+                    "sameAddrMaxPrc",  
+                    "priceChangeState", 
+                    "realtorName", 
+                    "realtorId", 
+                    "articleFeatureDesc",
+                    ]].copy()
+    
+
+    df_display['articleNo'] = df_display["articleNo"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+    df_display['realtorId'] = df_display["realtorId"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
+
+    df_display.columns = column_names
+
+    df_display.insert(0, 'DB저장일시', df_display.pop('DB저장일시'))
+
+    st.dataframe(df_display.drop(columns=['단지']), column_config={
+        "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
+        "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
+    })
+    
+
+def read_from_db(articleName, selected_buildings, selected_area, selected_trade_type, today = False):
     column_names = ["번호", 
                     "단지",
                     "등록일", 
@@ -255,7 +417,10 @@ def read_from_db(articleName, selected_buildings, selected_area, selected_trade_
     today = datetime.today()
 
     # 어제 날짜 계산
-    yesterday = today - timedelta(days=1)
+    if today == False:
+        yesterday = today - timedelta(days=1)
+    else:
+        yesterday = today
 
     # 어제 00:00:00 (YYYY-MM-DD HH:MM:SS)
     start_time = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
@@ -265,12 +430,16 @@ def read_from_db(articleName, selected_buildings, selected_area, selected_trade_
     end_time = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
     end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    query = f"SELECT * FROM article_list where articleName='{articleName}' and create_date <= '{end_time_str}'"
-    # query = f"SELECT * FROM article_list where articleName='{articleName}'"
+    query = f"SELECT * FROM article_list where articleName='{articleName}' and (create_date between '{start_time_str}' and '{end_time_str}')"
 
     st.markdown(query)
 
     df_from_db = pd.read_sql(query, con=st.session_state.engine)
+
+    if df_from_db.empty:
+        query = f"SELECT * FROM article_list where articleName='{articleName}' and create_date <= '{end_time_str}'"
+        st.markdown(query)
+        df_from_db = pd.read_sql(query, con=st.session_state.engine)
 
     if len(selected_buildings) > 0:
         df_from_db = df_from_db.loc[df_from_db['buildingName'].isin(selected_buildings)]
@@ -311,6 +480,7 @@ if data:
                      "buildingName", 
                      "floorInfo",
                      "areaName", 
+                     "area2",
                      "direction", 
                      "sameAddrCnt", 
                      "sameAddrMinPrc", 
@@ -319,7 +489,7 @@ if data:
                      "realtorName", 
                      "realtorId", 
                      "articleFeatureDesc",
-                     "area2", ]].copy()
+                      ]].copy()
 
     # df_display.sort_values(['buildingName', 'tradeTypeName', 'dealOrWarrantPrc'], ascending=[True, True, True], inplace=True)
 
@@ -392,6 +562,7 @@ if data:
                     "동",  
                     "층", 
                     "타입", 
+                    "전용면적", 
                     "향", 
                     "동일매물", 
                     "동일가격 최소", 
@@ -400,7 +571,6 @@ if data:
                     "중개사무소", 
                     "중개사무소ID",
                     "매물설명",
-                    "전용면적", 
                     ]
 
 
@@ -428,21 +598,36 @@ if data:
 
     df_temp.columns = column_names
 
-    st.dataframe(df_temp.drop(columns=['전용면적', '단지']), column_config={
+    st.dataframe(df_temp.drop(columns=['단지']), column_config={
         "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
         "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
     },)
 
-    df_origin["create_date"] = datetime.now()
+    # df_origin["create_date"] = datetime.now()
+    df_origin["create_date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # cols = st.columns([3, 3, 20])
 
     # with cols[0]:
-    if st.button("DB에 저장"):
-        save_to_db(df_origin)
+    # if st.button("DB에 저장"):
+    #     save_to_db(df_origin)
+
+    data_length = check_today_data(articleName)
+    disabled = True if data_length > 0 else False
+    if st.button("DB에 저장(firestore)", disabled=disabled):
+        save_to_firestore(df_origin)
 
     # with cols[1]:
-    if st.button("지난 데이터 조회"):
-        read_from_db(articleName, selected_buildings, selected_area, selected_trade_type)
+    # if st.button("지난 데이터 조회"):
+    #     read_from_db(articleName, selected_buildings, selected_area, selected_trade_type)
+
+    if st.button("지난 데이터 조회(firestore)"):
+        read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type)
+
+    # if st.button("지난 데이터 조회(오늘)"):
+    #     read_from_db(articleName, selected_buildings, selected_area, selected_trade_type, today=True)
+
+    if st.button("지난 데이터 조회(오늘) firestore"):
+        read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today=True)
 else:
     st.write("No data available.")
