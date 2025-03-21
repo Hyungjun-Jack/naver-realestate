@@ -119,8 +119,8 @@ def print_func():
         if i.startswith('dynamic_checkbox_') and st.session_state[i]:
             st.session_state[i] = False
 
-st.write("### 아파트 선택")
-articleName = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="hidden")
+st.write("##### 아파트 선택")
+articleName = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="collapsed")
 complex = buildingNames[articleName]
 
 if "complex" not in st.session_state:
@@ -551,7 +551,7 @@ if data:
         cols[i].checkbox(f"{label}({count})", value=selected, key=f"trade_type_checkbox_{label}")
 
     # Display the table in Streamlit with a clean, readable layout
-    st.write("### 네이버 부동산 매물")
+    st.write("##### 네이버 부동산 매물")
 
     df_origin = df_temp.copy()
 
@@ -621,13 +621,13 @@ if data:
     # if st.button("지난 데이터 조회"):
     #     read_from_db(articleName, selected_buildings, selected_area, selected_trade_type)
 
-    if st.button("지난 데이터 조회(firestore)"):
+    if st.button("지난 데이터 조회"):
         read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type)
 
     # if st.button("지난 데이터 조회(오늘)"):
     #     read_from_db(articleName, selected_buildings, selected_area, selected_trade_type, today=True)
 
-    if st.button("지난 데이터 조회(오늘) firestore"):
+    if st.button("지난 데이터 조회(오늘)"):
         read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today=True)
 else:
     st.write("No data available.")
