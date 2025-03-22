@@ -12,14 +12,18 @@ def testing_firestore():
     # Streamlit Secrets에서 Firestore 인증 정보 가져오기
     firestore_secrets = st.secrets["firestore"]
 
+    # print(firestore_secrets)
+
     # Firestore 클라이언트 생성
     credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+
     db = firestore.Client(credentials=credentials)
 
     # Firestore에서 데이터 가져오기 예제
     docs = db.collection("realestates").stream()
-    # for doc in docs:
-    #     st.write(f"{doc.id} => {doc.to_dict()}")
+    print(docs)
+    for doc in docs:
+        st.write(f"{doc.id} => {doc.to_dict()}")
 
 
 # db = firestore.Client.from_service_account_json("nwitter-reloaded-f8e63-9b90f93f06e2.json")
@@ -48,7 +52,7 @@ st.set_page_config(page_title="네이버부동산 매물", layout="wide")
 # st.title("Real Estate Listings from Pages 1 to 10")
 # st.markdown("This page fetches and displays real estate listings from pages 1 to 10 using the Naver Real Estate API.")
 
-testing_firestore()
+# testing_firestore()
 
 buildingNames = {
     "더샵부평센트럴시티":147824,
@@ -257,7 +261,7 @@ def make_dataframe(firestore):
 
     data = [doc.to_dict() for doc in firestore]
 
-    print("ASDFASD", data)
+    # print("ASDFASD", data)
 
     df = pd.DataFrame(data)
     
@@ -319,13 +323,13 @@ def read_from_firestore(articleName, selected_buildings, selected_area, selected
     realestates_ref = db.collection("realestates")
     
     # 현재 날짜 가져오기
-    today = datetime.today()
+    _today = datetime.today()
 
     # 어제 날짜 계산
     if today == False:
-        yesterday = today - timedelta(days=1)
+        yesterday = _today - timedelta(days=1)
     else:
-        yesterday = today
+        yesterday = _today
 
     # 어제 00:00:00 (YYYY-MM-DD HH:MM:SS)
     start_time = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
@@ -334,6 +338,8 @@ def read_from_firestore(articleName, selected_buildings, selected_area, selected
     # 어제 23:59:59 (YYYY-MM-DD HH:MM:SS)
     end_time = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
     end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    print(start_time_str, end_time_str)
 
     query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str)).stream()
 
@@ -344,8 +350,6 @@ def read_from_firestore(articleName, selected_buildings, selected_area, selected
         query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).stream()
         
         df = make_dataframe(query)
-        
-    print(df)
     
     if df.empty:
         return
