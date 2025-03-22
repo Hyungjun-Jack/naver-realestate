@@ -299,7 +299,7 @@ def check_today_data(articleName):
     for result in results:
         print(f"Alias of results from query: {result[0].alias}")
         print(f"Number of results from query: {result[0].value}")
-        
+
     return result[0].value
 
 def read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today = False):
@@ -477,6 +477,35 @@ def read_from_db(articleName, selected_buildings, selected_area, selected_trade_
         "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
     })
 
+# 2. 문자열을 숫자로 변환하는 함수
+def convert_to_number(value):
+    if "/" not in value:
+        # "억"과 "만원" 단위 분리
+        value = value.replace("억", "").replace(",", "")  # "7억 976" -> "70976"
+        parts = value.split()  # 공백 기준으로 분리
+        # 억 단위 처리
+        if len(parts) == 2:
+            first = int(parts[0]) * 10000  # 억 단위 * 10,000
+            second = int(parts[1])  # 만원 단위
+            return first + second  # 총 금액
+        else:
+            return int(parts[0]) * 10000  # 만약 "7억"만 있을 경우
+    return value
+
+
+def convert_to_string(value):
+    if type(value) is int:
+        # 억 단위와 만원 단위로 나누기
+        eok = value // 10000  # 억 단위 (10,000으로 나눈 몫)
+        man = value % 10000  # 만원 단위 (나머지)
+        
+        # 만약 만원이 0이면 "억" 단위만 출력
+        if man == 0:
+            return f"{eok}억"
+        else:
+            return f"{eok}억 {man:,}"  # 만원 단위는 천 단위 구분 기호 추가
+    return value
+
 # Transform data into a DataFrame if data is available
 if data:
     
@@ -591,8 +620,21 @@ if data:
 
     test = df_temp.groupby(['tradeTypeName', "area2"])
 
-    min = test["sameAddrMinPrc"].min()
-    max = test["sameAddrMaxPrc"].max()
+    df_temp2 = df_temp.copy()
+
+    df_temp2["sameAddrMinPrc__"] = df_temp2["sameAddrMinPrc"].apply(convert_to_number)
+    df_temp2["sameAddrMaxPrc__"] = df_temp2["sameAddrMaxPrc"].apply(convert_to_number)
+
+    test2 = df_temp2.groupby(['tradeTypeName', "area2"])
+
+    min = test2["sameAddrMinPrc__"].min().apply(convert_to_string)
+    max = test2["sameAddrMaxPrc__"].max().apply(convert_to_string)
+
+    # print(min, max)
+
+    # min = test["sameAddrMinPrc"].min()
+    # max = test["sameAddrMaxPrc"].max()
+
     count = test["area2"].value_counts()
     
     statistic = pd.concat([min, max, count], axis=1)
