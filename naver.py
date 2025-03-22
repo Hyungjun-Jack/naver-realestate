@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from google.cloud import firestore
 from google.oauth2 import service_account
 from google.cloud.firestore_v1.base_query import FieldFilter
+from google.cloud.firestore_v1 import aggregation
 
 def testing_firestore():
 
@@ -287,9 +288,19 @@ def check_today_data(articleName):
     end_time = datetime(today.year, today.month, today.day, 23, 59, 59)
     end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str)).stream()
+    query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str))
 
-    return len(list(query))
+    aggregate_query = aggregation.AggregationQuery(query)
+
+    aggregate_query.count(alias="all")
+
+    results = aggregate_query.get()
+
+    for result in results:
+        print(f"Alias of results from query: {result[0].alias}")
+        print(f"Number of results from query: {result[0].value}")
+        
+    return result[0].value
 
 def read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today = False):
 
