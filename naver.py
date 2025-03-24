@@ -302,7 +302,7 @@ def check_today_data(articleName):
 
     return result[0].value
 
-def read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today = False):
+def read_from_firestore(df_current, articleName, selected_buildings, selected_area, selected_trade_type, today = False):
 
     column_names = ["DB저장일시",
                     "번호", 
@@ -395,17 +395,47 @@ def read_from_firestore(articleName, selected_buildings, selected_area, selected
                     ]].copy()
     
 
+    deleted = df_display[~df_display['articleNo'].isin(df_current['articleNo'])]
+
+    deleted['articleNo'] = deleted["articleNo"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+    deleted['realtorId'] = deleted["realtorId"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
+
+    added = df_current[~df_current['articleNo'].isin(df_display['articleNo'])]
+    added['articleNo'] = added["articleNo"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
+    added['realtorId'] = added["realtorId"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
+    
     df_display['articleNo'] = df_display["articleNo"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?articleNo={x}")
     df_display['realtorId'] = df_display["realtorId"].apply(lambda x:f"https://new.land.naver.com/complexes/{complex}?realtorId={x}")
 
-    df_display.columns = column_names
 
+    df_display.columns = column_names
     df_display.insert(0, 'DB저장일시', df_display.pop('DB저장일시'))
 
-    st.dataframe(df_display.drop(columns=['단지']), column_config={
+    deleted.columns = column_names
+    deleted.insert(0, 'DB저장일시', deleted.pop('DB저장일시'))
+
+    added.insert(0, 'create_date', added.pop('create_date'))
+    added.columns = column_names
+
+
+    # st.dataframe(df_display.drop(columns=['단지']), column_config={
+    #     "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
+    #     "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
+    # })
+
+    st.write("##### 삭제 된 것")
+    st.dataframe(deleted.drop(columns=['단지']), column_config={
         "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
         "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
     })
+    st.write("##### 추가 된 것")
+    st.dataframe(added.drop(columns=['단지']), column_config={
+        "번호": st.column_config.LinkColumn("매물보기", display_text="매물보기"),
+        "중개사무소ID": st.column_config.LinkColumn("중개사보기", display_text="중개사보기"),
+    })
+
+    # st.dataframe(deleted)
+    # st.dataframe(added)
     
 
 def read_from_db(articleName, selected_buildings, selected_area, selected_trade_type, today = False):
@@ -479,28 +509,36 @@ def read_from_db(articleName, selected_buildings, selected_area, selected_trade_
 
 # 2. 문자열을 숫자로 변환하는 함수
 def convert_to_number(value):
+    # if "/" not in value or "억" in value:
     if "/" not in value:
-        # "억"과 "만원" 단위 분리
-        value = value.replace("억", "").replace(",", "")  # "7억 976" -> "70976"
-        parts = value.split()  # 공백 기준으로 분리
-        # 억 단위 처리
-        if len(parts) == 2:
-            first = int(parts[0]) * 10000  # 억 단위 * 10,000
-            second = int(parts[1])  # 만원 단위
-            return first + second  # 총 금액
+        if "억" in value:
+            # "억"과 "만원" 단위 분리
+            value = value.replace("억", "").replace(",", "")  # "7억 976" -> "70976"
+            parts = value.split()  # 공백 기준으로 분리
+            # 억 단위 처리
+            if len(parts) == 2:
+                first = int(parts[0]) * 10000  # 억 단위 * 10,000
+                second = int(parts[1])  # 만원 단위
+                return first + second  # 총 금액
+            else:
+                return int(parts[0]) * 10000  # 만약 "7억"만 있을 경우
         else:
-            return int(parts[0]) * 10000  # 만약 "7억"만 있을 경우
+             value = value.replace("억", "").replace(",", "")  # "7억 976" -> "70976"
+             return int(value)
     return value
 
 
 def convert_to_string(value):
+    
     if type(value) is int:
         # 억 단위와 만원 단위로 나누기
         eok = value // 10000  # 억 단위 (10,000으로 나눈 몫)
         man = value % 10000  # 만원 단위 (나머지)
-        
+
         # 만약 만원이 0이면 "억" 단위만 출력
-        if man == 0:
+        if eok == 0:
+            return f"{man:,}"
+        elif man == 0:
             return f"{eok}억"
         else:
             return f"{eok}억 {man:,}"  # 만원 단위는 천 단위 구분 기호 추가
@@ -679,12 +717,12 @@ if data:
     #     read_from_db(articleName, selected_buildings, selected_area, selected_trade_type)
 
     if st.button("지난 데이터 조회"):
-        read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type)
+        read_from_firestore(df_origin, articleName, selected_buildings, selected_area, selected_trade_type)
 
     # if st.button("지난 데이터 조회(오늘)"):
     #     read_from_db(articleName, selected_buildings, selected_area, selected_trade_type, today=True)
 
     if st.button("지난 데이터 조회(오늘)"):
-        read_from_firestore(articleName, selected_buildings, selected_area, selected_trade_type, today=True)
+        read_from_firestore(df_origin, articleName, selected_buildings, selected_area, selected_trade_type, today=True)
 else:
     st.write("No data available.")
