@@ -144,16 +144,16 @@ with _col[0]:
     st.write("##### 아파트 선택")
 with _col[1]:
     with st.form("myform"):
-        f1, f2, f3, f4 = st.columns([1, 1, 1, 1], vertical_alignment="bottom")
+        f1, f2, f3 = st.columns([1, 1, 1], vertical_alignment="bottom")
         with f1:
             st.text_input("apt_name", key="apt_name")
         with f2:
             st.text_input("apt_code", key="apt_code")
-        # f3, f4 = st.columns([1, 1])
+
         with f3:
             submit = st.form_submit_button(label="Submit", on_click=submit_form)
-        with f4:
             clear = st.form_submit_button(label="Clear", on_click=clear_form)
+        
 
 if submit:
     st.write('Submitted')
