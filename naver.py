@@ -655,30 +655,40 @@ if data:
                     "매물설명",
                     ]
 
+    groupby_columns = ['tradeTypeName', "area2"]
 
-    test = df_temp.groupby(['tradeTypeName', "area2"])
+    test = df_temp.groupby(groupby_columns)
 
     df_temp2 = df_temp.copy()
 
     df_temp2["sameAddrMinPrc__"] = df_temp2["sameAddrMinPrc"].apply(convert_to_number)
     df_temp2["sameAddrMaxPrc__"] = df_temp2["sameAddrMaxPrc"].apply(convert_to_number)
 
-    test2 = df_temp2.groupby(['tradeTypeName', "area2"])
+    if len(selected_area) > 0 and len(selected_trade_type) > 0:
+        if "area2" in groupby_columns:
+            groupby_columns.remove("area2")
+        groupby_columns.append("sameAddrMinPrc__")
+    else:
+        if "sameAddrMinPrc__" in groupby_columns:
+            groupby_columns.remove("sameAddrMinPrc__")
+            
+
+    print(groupby_columns)            
+
+    test2 = df_temp2.groupby(groupby_columns)
 
     min = test2["sameAddrMinPrc__"].min().apply(convert_to_string)
     max = test2["sameAddrMaxPrc__"].max().apply(convert_to_string)
 
-    # print(min, max)
-
-    # min = test["sameAddrMinPrc"].min()
-    # max = test["sameAddrMaxPrc"].max()
-
-    count = test["area2"].value_counts()
+    if len(selected_area) > 0 and len(selected_trade_type) > 0:
+        count = test2["sameAddrMinPrc__"].value_counts()
+    else:
+        count = test2["area2"].value_counts()
     
     statistic = pd.concat([min, max, count], axis=1)
 
-    statistic = statistic.rename(columns={'sameAddrMinPrc':'동일가격 최소', 'sameAddrMaxPrc':'동일가격 최대', 'count': '매물수',})
-    statistic = statistic.rename_axis(["거래", "전용면적"], axis=0)
+    statistic = statistic.rename(columns={'sameAddrMinPrc__':'동일가격 최소', 'sameAddrMaxPrc__':'동일가격 최대', 'count': '매물수',})
+    statistic = statistic.rename_axis(["거래", "가격" if len(selected_area) > 0 and len(selected_trade_type) > 0 else "전용면적"], axis=0)
 
     st.dataframe(statistic, width=500)
 
