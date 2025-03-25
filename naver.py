@@ -124,7 +124,49 @@ def print_func():
         if i.startswith('dynamic_checkbox_') and st.session_state[i]:
             st.session_state[i] = False
 
-st.write("##### 아파트 선택")
+if "apt_name" not in st.session_state:
+    st.session_state.apt_name = ""
+    st.session_state.apt_code = ""
+
+
+def clear_form():
+    st.session_state["apt_name"] = ""
+    st.session_state["apt_code"] = ""
+
+def submit_form():
+    print('Submitted')
+    print(st.session_state["apt_name"], st.session_state["apt_code"])
+    clear_form()
+
+_col = st.columns([1, 4], vertical_alignment="bottom")
+
+with _col[0]:
+    st.write("##### 아파트 선택")
+with _col[1]:
+    with st.form("myform"):
+        f1, f2, f3, f4 = st.columns([1, 1, 1, 1], vertical_alignment="bottom")
+        with f1:
+            st.text_input("apt_name", key="apt_name")
+        with f2:
+            st.text_input("apt_code", key="apt_code")
+        # f3, f4 = st.columns([1, 1])
+        with f3:
+            submit = st.form_submit_button(label="Submit", on_click=submit_form)
+        with f4:
+            clear = st.form_submit_button(label="Clear", on_click=clear_form)
+
+if submit:
+    st.write('Submitted')
+#     print(st.session_state["apt_name"], st.session_state["apt_code"])
+
+
+if clear:
+    st.write('Cleared')
+#     apt_name = st.text_input(label="아파트이름", value=st.session_state.apt_name)
+# with _col[2]:
+#     apt_code = st.text_input(label="코드", value=st.session_state.apt_code)
+
+
 articleName = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="collapsed")
 complex = buildingNames[articleName]
 
@@ -297,8 +339,9 @@ def check_today_data(articleName):
     results = aggregate_query.get()
 
     for result in results:
-        print(f"Alias of results from query: {result[0].alias}")
-        print(f"Number of results from query: {result[0].value}")
+        pass
+        # print(f"Alias of results from query: {result[0].alias}")
+        # print(f"Number of results from query: {result[0].value}")
 
     return result[0].value
 
