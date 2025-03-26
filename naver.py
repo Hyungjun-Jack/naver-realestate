@@ -125,8 +125,6 @@ def add_apt(apt_name, apt_code):
     doc_ref = db.collection("apt_list").document()
     doc_ref.set({"apt_name":apt_name, "apt_code":apt_code})
 
-    get_apt_list.clear()
-
 
 
 # Function to get data from the API for pages 1 to 10
@@ -188,7 +186,8 @@ def submit_form():
         print(st.session_state["apt_name"], st.session_state["apt_code"])
 
         add_apt(st.session_state["apt_name"], st.session_state["apt_code"])
-        clear_form()
+    get_apt_list.clear()
+    clear_form()
 
 
 apt_list = get_apt_list()
@@ -215,7 +214,7 @@ with _col2:
     #     st.write('Submitted')
     #     print(st.session_state["apt_name"], st.session_state["apt_code"])
 
-complex = buildingNames[articleName]
+complex = apt_list[articleName]
 
 if "complex" not in st.session_state:
     st.session_state.complex = complex
