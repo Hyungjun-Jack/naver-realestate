@@ -7,6 +7,7 @@ from google.cloud import firestore
 from google.oauth2 import service_account
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1 import aggregation
+import json
 
 def testing_firestore():
 
@@ -80,6 +81,54 @@ buildingNames = {
 }
 
 
+@st.cache_data(show_spinner="데이터 조회 중...")
+def get_apt_list():
+    print("get_apt_list")
+    # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+
+    # Firestore에서 데이터 가져오기 예제
+    apt_list = db.collection("apt_list")
+
+    count_query = apt_list.count()
+    count_result = count_query.get()
+
+    # st.write(count_result[0][0].value)
+
+    if count_result[0][0].value > 0:
+        
+        list = {}
+
+        apts = apt_list.order_by("apt_name").stream()
+        # apts = apt_list.stream()
+        
+        for apt in apts:
+            # st.write(apt.to_dict())
+            data = apt.to_dict()
+            list[data["apt_name"]] = data["apt_code"]
+        return list
+    else:
+        return buildingNames
+
+
+def add_apt(apt_name, apt_code):
+    # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+    doc_ref = db.collection("apt_list").document()
+    doc_ref.set({"apt_name":apt_name, "apt_code":apt_code})
+
+    get_apt_list.clear()
+
+
+
 # Function to get data from the API for pages 1 to 10
 @st.cache_data(show_spinner="데이터 조회 중...")
 def fetch_all_data(complex):
@@ -119,55 +168,53 @@ def fetch_all_data(complex):
 
 def print_func():
     now = datetime.now()
-    print(f'{now.minute}m{now.second}s')
+    # print(f'{now.minute}m{now.second}s')
     for i in st.session_state.keys():
         if i.startswith('dynamic_checkbox_') and st.session_state[i]:
             st.session_state[i] = False
 
 if "apt_name" not in st.session_state:
     st.session_state.apt_name = ""
-    st.session_state.apt_code = ""
+    st.session_state.apt_code = None
 
 
 def clear_form():
     st.session_state["apt_name"] = ""
-    st.session_state["apt_code"] = ""
+    st.session_state["apt_code"] = None
 
 def submit_form():
-    print('Submitted')
-    print(st.session_state["apt_name"], st.session_state["apt_code"])
-    clear_form()
+    if st.session_state["apt_name"] != "" and st.session_state["apt_code"] != None:
+        print('Submitted')
+        print(st.session_state["apt_name"], st.session_state["apt_code"])
 
-_col = st.columns([1, 4], vertical_alignment="bottom")
+        add_apt(st.session_state["apt_name"], st.session_state["apt_code"])
+        clear_form()
 
-with _col[0]:
-    st.write("##### 아파트 선택")
-with _col[1]:
+
+apt_list = get_apt_list()
+
+# st.write(apt_list)
+
+_col1, _col2 = st.columns([1, 1], vertical_alignment="center")
+
+with _col1:
+    # articleName = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="collapsed")
+    articleName = st.selectbox("아파트 선택", list(apt_list.keys()), label_visibility="collapsed")
+
+with _col2:
     with st.form("myform"):
         f1, f2, f3 = st.columns([1, 1, 1], vertical_alignment="bottom")
         with f1:
-            st.text_input("apt_name", key="apt_name")
+            st.text_input(" ", key="apt_name", label_visibility="collapsed")
         with f2:
-            st.text_input("apt_code", key="apt_code")
-
+            st.number_input(" ", key="apt_code", label_visibility="collapsed", value=None, format="%d", min_value=0)
         with f3:
-            submit = st.form_submit_button(label="Submit", on_click=submit_form)
-            clear = st.form_submit_button(label="Clear", on_click=clear_form)
-        
+            submit = st.form_submit_button(label="아파트추가", on_click=submit_form)
+            
+    # if submit:
+    #     st.write('Submitted')
+    #     print(st.session_state["apt_name"], st.session_state["apt_code"])
 
-if submit:
-    st.write('Submitted')
-#     print(st.session_state["apt_name"], st.session_state["apt_code"])
-
-
-if clear:
-    st.write('Cleared')
-#     apt_name = st.text_input(label="아파트이름", value=st.session_state.apt_name)
-# with _col[2]:
-#     apt_code = st.text_input(label="코드", value=st.session_state.apt_code)
-
-
-articleName = st.selectbox("아파트 선택", list(buildingNames.keys()), label_visibility="collapsed")
 complex = buildingNames[articleName]
 
 if "complex" not in st.session_state:
@@ -285,7 +332,7 @@ def save_to_firestore(dataframe):
 
     for index, row in dataframe.iterrows():
         # print(row.to_dict())
-        doc_ref = db.collection("realestates").document()  # 문서 ID를 index로 설정
+        doc_ref = db.collection("realestates").document()
         doc_ref.set(row.to_dict())  # 딕셔너리 형태로 변환 후 저장
 
     # today = datetime.today()
@@ -338,12 +385,12 @@ def check_today_data(articleName):
 
     results = aggregate_query.get()
 
-    for result in results:
-        pass
+    # for result in results:
+    #     pass
         # print(f"Alias of results from query: {result[0].alias}")
         # print(f"Number of results from query: {result[0].value}")
 
-    return result[0].value
+    return results[0][0].value
 
 def read_from_firestore(df_current, articleName, selected_buildings, selected_area, selected_trade_type, today = False):
 
@@ -393,14 +440,13 @@ def read_from_firestore(df_current, articleName, selected_buildings, selected_ar
     end_time = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
     end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    print(start_time_str, end_time_str)
+    # print(start_time_str, end_time_str)
 
     query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str)).stream()
 
     df = make_dataframe(query)
 
     if df.empty:
-        print("AAAAA")
         query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).stream()
         
         df = make_dataframe(query)
@@ -676,7 +722,7 @@ if data:
         cols[i].checkbox(f"{label}({count})", value=selected, key=f"trade_type_checkbox_{label}")
 
     # Display the table in Streamlit with a clean, readable layout
-    st.write("##### 네이버 부동산 매물")
+    st.write("###### 네이버 부동산 매물")
 
     df_origin = df_temp.copy()
 
@@ -716,7 +762,7 @@ if data:
             groupby_columns.remove("sameAddrMinPrc__")
             
 
-    print(groupby_columns)            
+    # print(groupby_columns)            
 
     test2 = df_temp2.groupby(groupby_columns)
 
