@@ -321,6 +321,23 @@ def update_label(labels):
     cols[2].checkbox(f"월세({st.session_state['checkbox_월세']})", key="trade_type_checkbox_" + "월세")
 
 
+
+def delete_to_firestore(articleName):
+     # Streamlit Secrets에서 Firestore 인증 정보 가져오기
+    firestore_secrets = st.secrets["firestore"]
+
+    # Firestore 클라이언트 생성
+    credentials = service_account.Credentials.from_service_account_info(dict(firestore_secrets))
+    db = firestore.Client(credentials=credentials)
+
+    docs = db.collection("realestates").where(filter=FieldFilter("articleName", "==", articleName)).get()
+
+    for doc in docs:
+        print(doc.to_dict())
+        doc.reference.delete()
+
+
+
 def save_to_firestore(dataframe):
      # Streamlit Secrets에서 Firestore 인증 정보 가져오기
     firestore_secrets = st.secrets["firestore"]
@@ -439,13 +456,14 @@ def read_from_firestore(df_current, articleName, selected_buildings, selected_ar
     end_time = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
     end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    # print(start_time_str, end_time_str)
+    # st.write(start_time_str, end_time_str)
 
     query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).where(filter=FieldFilter("create_date", ">=", start_time_str)).stream()
 
     df = make_dataframe(query)
 
     if df.empty:
+        # st.write("df.empty")
         query = realestates_ref.where(filter=FieldFilter("articleName", "==", articleName)).where(filter=FieldFilter("create_date", "<=", end_time_str)).stream()
         
         df = make_dataframe(query)
@@ -461,6 +479,7 @@ def read_from_firestore(df_current, articleName, selected_buildings, selected_ar
 
     if len(selected_trade_type) > 0:
         df = df.loc[df['tradeTypeName'].isin(selected_trade_type)]
+
 
 
     df_display = df[["create_date",
@@ -503,6 +522,9 @@ def read_from_firestore(df_current, articleName, selected_buildings, selected_ar
     deleted.insert(0, 'DB저장일시', deleted.pop('DB저장일시'))
 
     added.insert(0, 'create_date', added.pop('create_date'))
+     
+    if "TEST" in added.columns:
+        column_names.insert(12, "평당가")
     added.columns = column_names
 
 
@@ -642,6 +664,19 @@ if data:
     #                  "tagList", "buildingName", "sameAddrMaxPrc", "sameAddrMinPrc", "realtorName"]]
 
     df["areaName"] = df["areaName"] + "/" + df["area2"].astype(str) + "㎡"
+    # df["price"] = df["sameAddrMinPrc"].apply(convert_to_number)
+
+    df.loc[df["tradeTypeName"] == "매매", "TEST"] = df["sameAddrMinPrc"].apply(convert_to_number)
+    # temp = df.loc[df["tradeTypeName"] == "매매", "TEST"] = df["sameAddrMinPrc"] / df["area1"] * 3.3054
+
+    df["TEST"] = df["TEST"].fillna(0)
+
+    df["TEST"] = df["TEST"] / df["area1"] * 3.3054
+
+    df["TEST"] = df["TEST"].apply(convert_to_string).round(0).astype(int)
+
+    print(df["TEST"])
+
 
     df_display = df[["articleNo", 
                      "articleName", 
@@ -654,6 +689,7 @@ if data:
                      "direction", 
                      "sameAddrCnt", 
                      "sameAddrMinPrc", 
+                     "TEST",
                      "sameAddrMaxPrc",  
                      "priceChangeState", 
                      "realtorName", 
@@ -736,6 +772,7 @@ if data:
                     "향", 
                     "동일매물", 
                     "동일가격 최소", 
+                    "평당가",
                     "동일가격 최대", 
                     "가격변동", 
                     "중개사무소", 
@@ -807,8 +844,15 @@ if data:
 
     data_length = check_today_data(articleName)
     disabled = True if data_length > 0 else False
-    if st.button("DB에 저장(firestore)", disabled=disabled):
-        save_to_firestore(df_origin)
+
+    _btn_cols = st.columns([1, 1, 3])
+
+    with _btn_cols[0]:
+        if st.button("DB에 저장(firestore)", disabled=disabled):
+            save_to_firestore(df_origin)
+    with _btn_cols[1]:
+        if st.button("이전 데이터 전부 삭제"):
+            delete_to_firestore(articleName)
 
     # with cols[1]:
     # if st.button("지난 데이터 조회"):
