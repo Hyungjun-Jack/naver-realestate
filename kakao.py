@@ -1,8 +1,8 @@
 import uiautomation as auto
-import time
+import time 
 import os, sys
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFileDialog
 from PySide6.QtCore import (
     QThread,
     Signal,
@@ -10,7 +10,36 @@ from PySide6.QtCore import (
     QFile,
     QIODevice,
 )
+from PySide6.QtGui import QImage, QPixmap, QClipboard
 import pyperclip
+from datetime import datetime, time as dt
+import holidays
+
+# 한국 공휴일 설정
+kr_holidays = holidays.KR()
+
+def is_operating_now(now = None):
+    if now is None:
+        now = datetime.now()
+
+    # 날짜가 공휴일이면 False 반환
+    if now.date() in kr_holidays:
+        return False
+
+    weekday = now.weekday()  # 월요일=0, 토요일=5, 일요일=6
+    current_time = now.time()
+
+    # 공통 시작 시간: 07:30
+    start_time = dt(7, 30)
+
+    if weekday < 5:  # 월~금
+        end_time = dt(20, 00)  # 평일은 20:00까지
+    elif weekday == 5:  # 토요일은 14:00까지
+        end_time = dt(14, 0)
+    else:  # 일요일
+        return False
+
+    return start_time <= current_time <= end_time
 
 class WorkerThread(QThread):
     thread_signal = Signal(int)
@@ -22,7 +51,12 @@ class WorkerThread(QThread):
     
     def run(self):
         while True:
-            self.thread_signal.emit(self.index)
+            if is_operating_now():
+                print("✅ 운영 중입니다.")
+                self.thread_signal.emit(self.index)
+            else:
+                print("⛔ 지금은 운영 시간이 아닙니다.")
+
             # time.sleep(self.interval * 60 * 60)
             time.sleep(60)
         
@@ -71,12 +105,18 @@ class MainWindow:
         self.window.btnRptSendMsg1.clicked.connect(lambda:self.btnRptSendMsg_click(7))
         self.window.btnRptStopMsg1.clicked.connect(lambda:self.btnRptStopMsg_click(7))
         
+        self.window.btnSaveChatTitle.clicked.connect(self.btnSaveChatTitle_click)
+
+        self.window.btnSendImg.clicked.connect(lambda:self.btnSendImg("change_profile.jpg"))
+        self.window.btnSendImg_2.clicked.connect(lambda:self.btnSendImg("turnoff_alarm.jpg"))
 
     def show(self):
         self.window.show()
         
         for index, _ in enumerate(self.textEdit):
             self.loadMsg(index)
+        
+        self.loadChatTitle()
 
     def find_window(self):
         # 전체 윈도우 검색 (깊이 1까지만)
@@ -84,7 +124,8 @@ class MainWindow:
 
         target_window = None
         for win in windows:
-            if '확인용' in win.Name:
+            title = self.window.chatTitle.toPlainText()
+            if title in win.Name:
                 target_window = win
                 break
         return target_window
@@ -119,6 +160,11 @@ class MainWindow:
                     print("❌ 창을 찾지 못했습니다.")
             else:
                 print("❌ 전송할 메시지가 없습니다.")
+                target_window = self.find_window()
+                if target_window:
+                    print("✅ 채팅창 찾음:", target_window.Name)
+                else:
+                    print("❌ 창을 찾지 못했습니다.")
 
 
     def btnSaveMsg_click(self, index):
@@ -157,6 +203,58 @@ class MainWindow:
             else:
                 print("❌ 반복 메시지 전송이 실행 중이 아닙니다.")
 
+    def btnSaveChatTitle_click(self):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        title_file_name = os.path.join(dir_path, "kakao_title.txt")
+
+        with open(title_file_name, "w", encoding='utf-8') as f:
+            f.write(self.window.chatTitle.toPlainText())
+            f.close()
+        print("✅ 채팅 제목 저장 완료")
+
+    def btnSendImg(self, filename=None):
+        target_window = self.find_window()
+        if target_window:
+            print("✅ 채팅창 찾음:", target_window.Name)
+
+            input_box = target_window.DocumentControl()
+            if input_box.Exists():
+                input_box.SetFocus()
+                time.sleep(1)
+
+                dir_path = os.path.dirname(os.path.realpath(__file__))
+
+
+                # 이미지 파일 선택
+                img_path = os.path.join(dir_path, filename)
+
+                if img_path:
+                    # 1. 클립보드에 이미지 복사
+                    # (여기서 이미지를 클립보드에 복사하는 코드 필요)
+                    # 예: QImage/QPixmap 사용 등
+                    image = QImage(img_path)
+
+                    if not image.isNull():
+                        pixmap = QPixmap.fromImage(image)
+                        clipboard = QApplication.clipboard()
+                        clipboard.setPixmap(pixmap, QClipboard.Clipboard)
+                        time.sleep(0.1)
+
+                        # 2. Ctrl+V 붙여넣기
+                        input_box.SendKeys('{Ctrl}v') 
+                        time.sleep(0.1)
+
+                        target_window.SendKeys('{Enter}')
+                        print("✅ 이미지 전송 완료")
+                    else:
+                        print("❌ 이미지 파일을 불러올 수 없습니다.")
+                else:
+                    print("❌ 이미지 파일을 선택하지 않았습니다.")
+            else:
+                print("❌ 입력창을 찾지 못했습니다.")
+        else:
+            print("❌ 창을 찾지 못했습니다.")
+
     def loadMsg(self, index):
         if index < len(self.textEdit):
             textEdit = self.textEdit[index]
@@ -170,6 +268,16 @@ class MainWindow:
             except FileNotFoundError:
                 print("❌ 메시지 파일이 없습니다.")
 
+    def loadChatTitle(self):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        title_file_name = os.path.join(dir_path, "kakao_title.txt")
+
+        try:
+            with open(title_file_name, "r", encoding='utf-8') as f:
+                self.window.chatTitle.setText(f.read())
+        except FileNotFoundError:
+            print("❌ 채팅 제목 파일이 없습니다.")
+            self.window.chatTitle.setText("확인용")
 
 if __name__ == "__main__":
     dir_path = os.path.dirname(os.path.realpath(__file__))
